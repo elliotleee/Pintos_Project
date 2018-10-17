@@ -172,7 +172,7 @@ thread_create (const char *name, int priority,
   struct switch_threads_frame *sf;
   tid_t tid;
 
-  t->ticks_of_blocked = 0; // Initialize time of blocked when thread being created.
+  
 
   ASSERT (function != NULL);
 
@@ -202,6 +202,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  t->ticks_of_blocked = 0; // Initialize time of blocked when thread being created.
 
   return tid;
 }
@@ -589,7 +591,8 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 void thread_wake_up(struct thread *thr, void* aux UNUSED){
   if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked > 0){
     (*thr).ticks_of_blocked--;
-    return;
+    if((*thr).ticks_of_blocked == 0) {
+      thread_unblock(thr);
+    }
   }
-  thread_unblock(thr);
 }
