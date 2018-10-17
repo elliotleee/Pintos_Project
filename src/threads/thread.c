@@ -586,7 +586,7 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
-void thread_wake_up(struct thread *thr, void* aux){
+void thread_wake_up(struct thread *thr, void* aux UNUSED){
   if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked > 0){
     (*thr).ticks_of_blocked--;
     return;
