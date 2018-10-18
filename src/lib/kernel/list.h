@@ -165,12 +165,24 @@ void list_reverse (struct list *);
 typedef bool list_less_func (const struct list_elem *a,
                              const struct list_elem *b,
                              void *aux);
+typedef bool thread_cmp_priority_func (const struct list_elem *a,
+                               const struct list_elem *b,
+                               void *aux UNUSED)
+                               {
+                                 return ( list_entry(a, struct thread, elem)->priority 
+                                    > list_entry(b, struct thread, elem)->priority )
+                               }
+
 
 /* Operations on lists with ordered elements. */
 void list_sort (struct list *,
                 list_less_func *, void *aux);
 void list_insert_ordered (struct list *, struct list_elem *,
                           list_less_func *, void *aux);
+void list_insert_priority(struct list *list,
+                         struct list_elem *elem, void *aux);
+
+
 void list_unique (struct list *, struct list *duplicates,
                   list_less_func *, void *aux);
 

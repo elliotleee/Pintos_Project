@@ -1,3 +1,4 @@
+
 #include "list.h"
 #include "../debug.h"
 
@@ -457,6 +458,24 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
       break;
   return list_insert (e, elem);
 }
+
+void
+list_insert_priority(struct list *list, struct list_elem *elem,
+                     void *aux)
+{
+    struct list_elem *e;
+    ASSERT (list != NULL);
+    ASSERT (list != NULL);
+    ASSERT (list != NULL);
+
+    for (e = list_begin (list); e != list_end (list); e = list_next (e))
+        if (thread_cmp_priority_func (elem, e, aux))
+            break;
+    return list_insert (e, elem);
+}
+
+
+
 
 /* Iterates through LIST and removes all but the first in each
    set of adjacent elements that are equal according to LESS
