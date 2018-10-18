@@ -89,7 +89,7 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks (); // get start ticks
+  //int64_t start = timer_ticks (); // get start ticks
 
   if(ticks <= 0) return;
   //enum intr_level old_level; // prohibit current status be interrupted, save interrupt status before prohibition

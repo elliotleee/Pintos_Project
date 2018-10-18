@@ -578,7 +578,23 @@ allocate_tid (void)
 
   return tid;
 }
+<<<<<<< Updated upstream
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+=======
+
+/* Offset of `stack' member within `struct thread'. 
+   Used by switch.S, which can't figure it out on its own. */
+uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+void thread_wake_up(struct thread *thr, void* aux UNUSED){
+  if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked > 0){
+    if((--(*thr).ticks_of_blocked) == 0) {
+      thread_unblock(thr);
+    }
+  }
+}
+>>>>>>> Stashed changes
