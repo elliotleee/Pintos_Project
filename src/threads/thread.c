@@ -197,7 +197,9 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  if(thread_current()->priority < priority){
+  	thread_yield();
+  }
   return tid;
 }
 
@@ -234,7 +236,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_priority(&ready_list, &t-elem, NULL);
+  list_insert_priority(&ready_list, &t->elem, NULL);
   //list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -306,7 +308,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread)
-    list_insert_priority(&ready_list, &cur-elem, NULL);
+    list_insert_priority(&ready_list, &cur->elem, NULL);
     //list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
@@ -335,6 +337,7 @@ void
 thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
+	thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -584,18 +587,12 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-/* Offset of `stack' member within `struct thread'. 
-   Used by switch.S, which can't figure it out on its own. */
-uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-
-void thread_wake_up(struct thread *thr, int64_t cur_ticks){
-  if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked < cur_ticks){
-    cur_ticks--;
-    if((*thr).ticks_of_blocked == cur_ticks) thread_unblock(thr);
-    // if((--(*thr).ticks_of_blocked) == 0) {
-    //   thread_unblock(thr);
-    // }
+void thread_wake_up(struct thread *thr, void* aux UNUSED){
+  if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked > 0){
+    if((--(*thr).ticks_of_blocked) == 0) {
+      thread_unblock(thr);
+    }
   }
 }
 
