@@ -1,7 +1,6 @@
-
 #include "list.h"
 #include "../debug.h"
-#include "../../threads/thread.h"
+
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
    last element.  The `prev' link of the front header is null, as
@@ -459,34 +458,6 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
   return list_insert (e, elem);
 }
 
-
-bool thread_cmp_priority_func (const struct list_elem *a,
-                               const struct list_elem *b,
-                               void *aux UNUSED)
-                               {
-                                 return ( list_entry(a, struct thread, elem)->priority 
-                                    > list_entry(b, struct thread, elem)->priority );
-                               }
-
-
-void
-list_insert_priority(struct list *list, struct list_elem *elem,
-                     void *aux)
-{
-    struct list_elem *e;
-    ASSERT (list != NULL);
-    ASSERT (list != NULL);
-    ASSERT (list != NULL);
-
-    for (e = list_begin (list); e != list_end (list); e = list_next (e))
-        if (thread_cmp_priority_func (elem, e, aux))
-            break;
-    return list_insert (e, elem);
-}
-
-
-
-
 /* Iterates through LIST and removes all but the first in each
    set of adjacent elements that are equal according to LESS
    given auxiliary data AUX.  If DUPLICATES is non-null, then the
@@ -550,4 +521,40 @@ list_min (struct list *list, list_less_func *less, void *aux)
           min = e; 
     }
   return min;
+}
+
+
+
+
+void thread_list_insert_priority(struct list *list, struct list_elem *elem, list_less_func *cmp, void *aux){
+    struct list_elem *e;
+    ASSERT (list != NULL);
+    ASSERT (elem != NULL);
+
+    for (e = list_begin (list); e != list_end (list); e = list_next (e))
+        if (cmp(elem, e, aux))
+            break;
+    return list_insert (e, elem);
+}
+
+void lock_list_insert_priority(struct list *list, struct list_elem *elem, list_less_func *cmp, void *aux){
+    struct list_elem *e;
+    ASSERT (list != NULL);
+    ASSERT (elem != NULL);
+
+    for (e = list_begin (list); e != list_end (list); e = list_next (e))
+        if (cmp (elem, e, aux))
+            break;
+    return list_insert (e, elem);
+}
+
+void cond_list_insert_priority(struct list *list, struct list_elem *elem, list_less_func *cmp, void *aux){
+    struct list_elem *e;
+    ASSERT (list != NULL);
+    ASSERT (elem != NULL);
+
+    for (e = list_begin (list); e != list_end (list); e = list_next (e))
+        if (cmp(elem, e, aux))
+            break;
+    return list_insert (e, elem);
 }
