@@ -93,6 +93,7 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct list locks;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -127,7 +128,7 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
-void thread_wake_up(struct thread* thr, void *aux UNUSED);
+void thread_wake_up(struct thread* thr, int64_t cur_ticks);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
