@@ -101,7 +101,6 @@ timer_sleep (int64_t ticks)
   (*current_thread).ticks_of_blocked = start + ticks; // may cause problem***********************************
   thread_block();
   // while (timer_elapsed (start) < ticks) 
-  //   thread_yield ();
   intr_set_level(old_level);
 }
 

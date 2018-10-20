@@ -588,11 +588,13 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
-void thread_wake_up(struct thread *thr, void* aux UNUSED){
-  if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked > 0){
-    if((--(*thr).ticks_of_blocked) == 0) {
-      thread_unblock(thr);
-    }
+void thread_wake_up(struct thread *thr, int64_t cur_ticks){
+  if((*thr).status == THREAD_BLOCKED && (*thr).ticks_of_blocked < cur_ticks){
+    cur_ticks--;
+    if((*thr).ticks_of_blocked == cur_ticks) thread_unblock(thr);
+    // if((--(*thr).ticks_of_blocked) == 0) {
+    //   thread_unblock(thr);
+    // }
   }
 }
 
