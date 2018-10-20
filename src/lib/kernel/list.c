@@ -1,7 +1,7 @@
 
 #include "list.h"
 #include "../debug.h"
-
+#include "../../threads/thread.h"
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
    last element.  The `prev' link of the front header is null, as
@@ -458,6 +458,16 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
       break;
   return list_insert (e, elem);
 }
+
+
+bool thread_cmp_priority_func (const struct list_elem *a,
+                               const struct list_elem *b,
+                               void *aux UNUSED)
+                               {
+                                 return ( list_entry(a, struct thread, elem)->priority 
+                                    > list_entry(b, struct thread, elem)->priority );
+                               }
+
 
 void
 list_insert_priority(struct list *list, struct list_elem *elem,
