@@ -31,8 +31,8 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "../lib/kernel/list.h"
 
+#include "../lib/kernel/list.h"
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -206,11 +206,11 @@ void lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  if (cur_holder != NULL && !thread_mlfqs)
+  if (cur_holder != NULL && !thread_mlfqs )
   {
     cur_thread->lock_waiting = lock;
     temp = lock;
-    while (temp&&cur_thread->priority > temp->max_priority)
+    while (temp && cur_thread->priority > temp->max_priority)
     {
       temp->max_priority = cur_thread->priority;
 
@@ -235,7 +235,7 @@ void lock_acquire (struct lock *lock)
     cur_thread->lock_waiting = NULL;
     lock->max_priority = cur_thread->priority;
 
-    lock_list_insert_priority(&cur_thread->locks, &lock->elem, (list_less_func *) &lock_cmp_priority_func, NULL);
+    lock_list_insert_priority(&cur_thread->locks, &lock->elem,(list_less_func *) &lock_cmp_priority_func, NULL);
     if (lock->max_priority > cur_thread->priority)
     {
       cur_thread->priority = lock->max_priority;
@@ -402,21 +402,24 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 }
 
 /* lock comparation function */
-bool lock_cmp_priority_func (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+bool
+lock_cmp_priority_func (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
   bool result;
   result = list_entry (a, struct lock, elem)->max_priority > list_entry (b, struct lock, elem)->max_priority;
   return result;
 }
 
 /* cond sema comparation function */
-
-bool cond_cmp_priority_func(const struct list_elem *condi_a, const struct list_elem *condi_b, void *aux UNUSED) {
-  struct semaphore_elem *sema_a = list_entry(condi_a, struct semaphore_elem, elem);
-  struct semaphore_elem *sema_b = list_entry(condi_b, struct semaphore_elem, elem);
-  int prior_of_a = list_entry(list_front(&sema_a->semaphore.waiters), struct thread, elem)->priority;
-  int prior_of_b = list_entry(list_front(&sema_b->semaphore.waiters), struct thread, elem)->priority;
+bool
+cond_cmp_priority_func (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
   bool result;
-  result = prior_of_a > prior_of_b;
+  struct semaphore_elem *sa = list_entry (a, struct semaphore_elem, elem);
+  struct semaphore_elem *sb = list_entry (b, struct semaphore_elem, elem);
+  int pri_a = list_entry(list_front(&sa->semaphore.waiters), struct thread, elem)->priority;
+  int pri_b = list_entry(list_front(&sb->semaphore.waiters), struct thread, elem)->priority;
+  result = pri_a > pri_b;
   return result;
 }
 

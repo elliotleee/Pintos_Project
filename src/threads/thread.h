@@ -5,7 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
-#include "fixed_point.h"
+#include "float_num.h"
 #include "../devices/timer.h"
 
 /* States in a thread's life cycle. */
@@ -110,7 +110,7 @@ struct thread
     struct list locks;                  /* Locks that the thread is holding. */
     struct lock *lock_waiting;          /* The lock that the thread is waiting for. */
     int nice;                           /* Niceness. */
-    fixed_t recent_cpu;                 /* Recent CPU. */
+    fp_t recent_cpu;                 /* Recent CPU. */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -145,6 +145,7 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
+void thread_mlqs_tick(struct thread *, int64_t );
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
@@ -155,8 +156,6 @@ void thread_wake_up (struct thread *t, void *aux UNUSED);
 
 bool thread_cmp_priority_func (const struct list_elem *a, const struct list_elem *b, void* aux);
 void thread_update_priority (struct thread *);
-void thread_mlfqs_increase_recent_cpu_by_one (void);
-void thread_mlfqs_update_priority (struct thread *);
-void thread_mlfqs_update_load_avg_and_recent_cpu (void);
+
 
 #endif /* threads/thread.h */

@@ -11,12 +11,12 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/fixed_point.h"
+#include "threads/float_num.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
 
-fixed_t load_avg;
+fp_t load_avg;
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -117,7 +117,7 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
-  load_avg = FP_CONST (0);
+  load_avg = INT_TO_FD (0);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -128,6 +128,40 @@ thread_start (void)
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
+
+void
+thread_mlqs_tick(struct thread *cur_thr, int64_t ticks){
+  if(thread_mlfqs && ticks % 100 == 0){
+    size_t ready_threads = list_size(&ready_list);
+    if(cur_thr != idle_thread)
+      ready_threads++;
+    load_avg = FD_DIV_N(FD_ADD_N(FD_MUL_N(load_avg, 59),ready_threads), 60);
+
+    struct thread *t;
+    struct list_elem *e = list_begin (&all_list);
+    for (; e != list_end (&all_list); e = list_next (e)){
+     t = list_entry(e, struct thread, allelem);
+     if (t != idle_thread)
+     {
+       t->recent_cpu = FD_ADD_N (FD_MUL (FD_DIV (FD_MUL_N (load_avg, 2), FD_ADD_N (FD_MUL_N (load_avg, 2), 1)), t->recent_cpu), t->nice);
+       t->priority = FD_TO_INT_PART (FD_SUB_N(FD_SUB (INT_TO_FD (PRI_MAX), FD_DIV_N (t->recent_cpu, 4)), 2 * t->nice));
+      t->priority = t->priority < PRI_MIN ? PRI_MIN : t->priority;
+      t->priority = t->priority > PRI_MAX ? PRI_MAX : t->priority;
+     }
+   }
+  }
+
+  if(thread_mlfqs && ticks % 4 == 0) {
+    if(cur_thr != idle_thread) {
+      cur_thr->priority = FD_TO_INT_PART (FD_SUB_N (FD_SUB (INT_TO_FD (PRI_MAX), FD_DIV_N (cur_thr->recent_cpu, 4)), 2 * cur_thr->nice));
+      cur_thr->priority = cur_thr->priority < PRI_MIN ? PRI_MIN : cur_thr->priority;
+      cur_thr->priority = cur_thr->priority > PRI_MAX ? PRI_MAX : cur_thr->priority;
+    }
+
+  }
+}
+
+
 void
 thread_tick (void)
 {
@@ -146,6 +180,12 @@ thread_tick (void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
+  if(t != idle_thread) {
+    t->recent_cpu = FD_ADD_N(t->recent_cpu, 1);
+  }
+  int ticks = timer_ticks();
+  thread_mlqs_tick(t, ticks);
 }
 
 /* Prints thread statistics. */
@@ -401,7 +441,10 @@ void
 thread_set_nice (int nice)
 {
   thread_current ()->nice = nice;
-  thread_mlfqs_update_priority (thread_current ());
+  struct thread *cur_thr = thread_current();
+  cur_thr->priority = FD_TO_INT_PART (FD_SUB_N (FD_SUB (INT_TO_FD (PRI_MAX), FD_DIV_N (cur_thr->recent_cpu, 4)), 2 * cur_thr->nice));
+  cur_thr->priority = cur_thr->priority < PRI_MIN ? PRI_MIN : cur_thr->priority;
+  cur_thr->priority = cur_thr->priority > PRI_MAX ? PRI_MAX : cur_thr->priority;
   thread_yield ();
 }
 
@@ -416,14 +459,14 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void)
 {
-  return FP_ROUND (FP_MULT_MIX (load_avg, 100));
+  return FD_TO_INT_NEAR (FD_MUL_N (load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void)
 {
-  return FP_ROUND (FP_MULT_MIX (thread_current ()->recent_cpu, 100));
+  return FD_TO_INT_NEAR (FD_MUL_N (thread_current ()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -515,7 +558,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->lock_waiting = NULL;
   t->nice = 0;
   t->ticks_of_blocked = 0;
-  t->recent_cpu = FP_CONST (0);
+  t->recent_cpu = INT_TO_FD (0);
   t->magic = THREAD_MAGIC;
   /* list_push_back (&all_list, &t->allelem); */
   thread_list_insert_priority (&all_list, &t->allelem,  (list_less_func *) &thread_cmp_priority_func, NULL);
@@ -670,57 +713,10 @@ thread_update_priority (struct thread *t)
 }
 
 /* Increase recent_cpu by 1. */
-void
-thread_mlfqs_increase_recent_cpu_by_one (void)
-{
-  ASSERT (thread_mlfqs);
-  ASSERT (intr_context ());
 
-  struct thread *current_thread = thread_current ();
-  if (current_thread == idle_thread)
-    return;
-  current_thread->recent_cpu = FP_ADD_MIX (current_thread->recent_cpu, 1);
-}
-
-/* Update priority. */
-void
-thread_mlfqs_update_priority (struct thread *t)
-{
-  if (t == idle_thread)
-    return;
-
-  ASSERT (thread_mlfqs);
-  ASSERT (t != idle_thread);
-
-  t->priority = FP_INT_PART (FP_SUB_MIX (FP_SUB (FP_CONST (PRI_MAX), FP_DIV_MIX (t->recent_cpu, 4)), 2 * t->nice));
-  t->priority = t->priority < PRI_MIN ? PRI_MIN : t->priority;
-  t->priority = t->priority > PRI_MAX ? PRI_MAX : t->priority;
-}
 
 /* Every per second to refresh load_avg and recent_cpu of all threads. */
-void
-thread_mlfqs_update_load_avg_and_recent_cpu (void)
-{
-  ASSERT (thread_mlfqs);
-  ASSERT (intr_context ());
 
-  size_t ready_threads = list_size (&ready_list);
-  if (thread_current () != idle_thread)
-    ready_threads++;
-  load_avg = FP_ADD (FP_DIV_MIX (FP_MULT_MIX (load_avg, 59), 60), FP_DIV_MIX (FP_CONST (ready_threads), 60));
-
-  struct thread *t;
-  struct list_elem *e = list_begin (&all_list);
-  for (; e != list_end (&all_list); e = list_next (e))
-  {
-    t = list_entry(e, struct thread, allelem);
-    if (t != idle_thread)
-    {
-      t->recent_cpu = FP_ADD_MIX (FP_MULT (FP_DIV (FP_MULT_MIX (load_avg, 2), FP_ADD_MIX (FP_MULT_MIX (load_avg, 2), 1)), t->recent_cpu), t->nice);
-      thread_mlfqs_update_priority (t);
-    }
-  }
-}
 
 void
 thread_wake_up(struct thread *t, void *aux UNUSED){
@@ -732,3 +728,5 @@ thread_wake_up(struct thread *t, void *aux UNUSED){
     }
   }
 }
+
+
