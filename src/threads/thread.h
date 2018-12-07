@@ -4,9 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "synch.h"
-#include "float_num.h"
-#include "../devices/timer.h"
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -20,7 +18,6 @@ enum thread_status
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
-
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
 /* Thread priorities. */
@@ -97,6 +94,15 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+		int64_t ticks_sleep;                /* Record how much time to sleep. */
+
+    struct list fn_list;                /* File desc list */
+    struct child_process *child;        /* Strore self-as-child info */
+    struct list child_list;             /* List of child process */
+    struct semaphore wait;              /* Wait for child to load */
+    struct file *file;                  /* Executing file */
+
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -104,13 +110,6 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
-    long long ticks_of_blocked;              /* Record the time the thread has been blocked. */
-    int base_priority;                  /* Base priority. */
-    struct list locks;                  /* Locks that the thread is holding. */
-    struct lock *lock_waiting;          /* The lock that the thread is waiting for. */
-    int nice;                           /* Niceness. */
-    fp_t recent_cpu;                 /* Recent CPU. */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -136,7 +135,6 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
-struct list* get_ready_list(void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
@@ -145,17 +143,13 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
-void thread_mlqs_tick(struct thread *, int64_t );
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void thread_wake_up (struct thread *t, void *aux UNUSED);
+void check_sleep (struct thread *t, void *aux UNUSED);
 
-
-bool thread_cmp_priority_func (const struct list_elem *a, const struct list_elem *b, void* aux);
-void thread_update_priority (struct thread *);
-
+struct thread *get_thread (tid_t tid);
 
 #endif /* threads/thread.h */

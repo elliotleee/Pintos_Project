@@ -522,39 +522,3 @@ list_min (struct list *list, list_less_func *less, void *aux)
     }
   return min;
 }
-
-
-
-
-void thread_list_insert_priority(struct list *list, struct list_elem *elem, list_less_func *cmp, void *aux){
-    struct list_elem *e;
-    ASSERT (list != NULL);
-    ASSERT (elem != NULL);
-
-    for (e = list_begin (list); e != list_end (list); e = list_next (e))
-        if (cmp(elem, e, aux))
-            break;
-    return list_insert (e, elem);
-}
-
-void lock_list_insert_priority(struct list *list, struct list_elem *elem, list_less_func *cmp, void *aux){
-    struct list_elem *e;
-    ASSERT (list != NULL);
-    ASSERT (elem != NULL);
-
-    for (e = list_begin (list); e != list_end (list); e = list_next (e))
-        if (cmp (elem, e, aux))
-            break;
-    return list_insert (e, elem);
-}
-
-void cond_list_insert_priority(struct list *list, struct list_elem *elem, list_less_func *cmp, void *aux){
-    struct list_elem *e;
-    ASSERT (list != NULL);
-    ASSERT (elem != NULL);
-
-    for (e = list_begin (list); e != list_end (list); e = list_next (e))
-        if (cmp(elem, e, aux))
-            break;
-    return list_insert (e, elem);
-}
