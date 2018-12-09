@@ -23,6 +23,10 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+struct pkg{
+  char* file_name;
+  struct thread* parent; 
+};
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -32,6 +36,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  struct pkg* pack;
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -47,8 +52,11 @@ process_execute (const char *file_name)
   //name_copy = strtok_r (name_copy, " ", &next);
   name_copy = strtok_r(file_name, " ", &next);
 
+  pack->file_name = fn_copy;
+  pack->parent = thread_current();
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (name_copy, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (name_copy, PRI_DEFAULT, start_process, pack);
   if (tid == TID_ERROR)
     {
       free (name_copy);
@@ -68,10 +76,12 @@ process_execute (const char *file_name)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name)
+start_process (void *pack)
 {
+  struct pkg* pack2 = pack;
+  
   char *fn_copy;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy,pack2->file_name, PGSIZE);
   struct child_process *child = palloc_get_page (0);
   child->file_name = fn_copy;
   child->tid = -1;
@@ -95,6 +105,7 @@ start_process (void *file_name)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  
   char *token = NULL, *save_prt = NULL;
   token = strtok_r(fn_copy, " ", &save_prt );
   success = load (token, &if_.eip, &if_.esp);
@@ -108,7 +119,7 @@ start_process (void *file_name)
     exit (-1);
 
   if (child->tid > -1)
-    list_push_back (&thread_current()->child_list, &child->elem);
+    list_push_back (&pack2->parent->child_list, &child->elem);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
