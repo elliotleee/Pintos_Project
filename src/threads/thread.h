@@ -102,6 +102,8 @@ struct thread
     struct semaphore wait;              /* Wait for child to load */
     struct file *file;                  /* Executing file */
 
+    tid_t father_tid; //~
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -148,8 +150,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void check_sleep (struct thread *t, void *aux UNUSED);
 
-struct thread *get_thread (tid_t tid);
+//struct thread *get_thread (tid_t tid);
+struct list get_all_list();
 
 #endif /* threads/thread.h */

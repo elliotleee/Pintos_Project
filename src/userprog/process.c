@@ -27,6 +27,19 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+struct child_process* init_child(char* fn_copy){
+  struct child_process *child = palloc_get_page (0);
+  child->file_name = fn_copy;
+  child->tid = -1;
+  child->father_tid = 0;
+  child->waiting = false;
+  child->finish = false;
+  child->parent_finish = false;
+  child->exit = -1;
+}
+
+
+
 tid_t
 process_execute (const char *file_name)
 {
@@ -38,21 +51,27 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  struct child_process *child = palloc_get_page (0);
-  child->file_name = fn_copy;
-  child->tid = -1;
-  child->parent = NULL;
-  child->waiting = false;
-  child->finish = false;
-  child->parent_finish = false;
-  child->exit = -1;
+  // struct child_process *child = palloc_get_page (0);
+  // child->file_name = fn_copy;
+  // child->tid = -1;
+  // child->parent = NULL;
+  // child->waiting = false;
+  // child->finish = false;
+  // child->parent_finish = false;
+  // child->exit = -1;
+  // sema_init (&child->child_wait, 0);
+
+
+  struct child_process * child = init_child(fn_copy);
   sema_init (&child->child_wait, 0);
 
 	/* Make a copy */
-	char *name_copy,*next = NULL;
-  name_copy = malloc (strlen (file_name) + 1);
-  strlcpy(name_copy, file_name, strlen(file_name) + 1);
-  name_copy = strtok_r (name_copy, " ", &next);
+	// char *name_copy,*next = NULL;
+  // name_copy = malloc (strlen (file_name) + 1);
+  // strlcpy(name_copy, file_name, strlen(file_name) + 1);
+  // name_copy = strtok_r (name_copy, " ", &next);
+
+  char *name_copy = make_copy(file_name);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name_copy, PRI_DEFAULT, start_process, child);
@@ -62,7 +81,18 @@ process_execute (const char *file_name)
       palloc_free_page (fn_copy);
       return TID_ERROR;
     }
-  struct thread *t = get_thread (tid);
+  //struct thread *t = get_thread (tid);
+
+  
+  struct list all_list = get_all_list();  
+  struct thread* t = NULL;  
+  for(struct list_elem *e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
+  {    
+    t = list_entry(e, struct thread, allelem);    
+    if(t->tid == tid) break;  
+  }
+
+
   /* Wait for loading child */
   sema_down (&t->wait);
 
@@ -72,6 +102,20 @@ process_execute (const char *file_name)
   palloc_free_page (fn_copy);
   return child->tid;
 }
+
+
+void child_success(struct child_process **child, bool success, struct thread **cur)
+{  
+  if(success) 
+  {    
+    (*child)->tid = (*cur)->tid;  
+  }  
+  else 
+  {    
+    (*child)->tid = -1;
+  }
+}
+
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -91,8 +135,9 @@ start_process (void *child_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  child_success(&child, success, &t);
 
-  child->tid = success ? t->tid : -1;
+  //child->tid = success ? t->tid : -1;
   t->child = child;
   sema_up (&t->wait);
 
@@ -120,6 +165,19 @@ start_process (void *child_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+
+struct child_process *get_child(struct list *child_list, tid_t child_tid)
+{
+  struct list_elem *e = NULL;
+  for (e = list_front(child_list); e != list_end(child_list); e = list_next (e))
+        {
+          struct child_process *temp = list_entry (e, struct child_process, elem);
+          if (temp->tid == child_tid)
+            return temp;
+        }
+}
+
+
 int
 process_wait (tid_t child_tid UNUSED)
 {
@@ -128,19 +186,20 @@ process_wait (tid_t child_tid UNUSED)
 
   /* Found tid in child_list */
   struct child_process *child = NULL;
-  struct list_elem *e = NULL;
+  //struct list_elem *e = NULL;
   if (!list_empty(child_list))
     {
 
-      for (e = list_front(child_list); e != list_end(child_list); e = list_next (e))
-        {
-          struct child_process *temp = list_entry (e, struct child_process, elem);
-          if (temp->tid == child_tid)
-            {
-              child = temp;
-              break;
-            }
-        }
+      // for (e = list_front(child_list); e != list_end(child_list); e = list_next (e))
+      //   {
+      //     struct child_process *temp = list_entry (e, struct child_process, elem);
+      //     if (temp->tid == child_tid)
+      //       {
+      //         child = temp;
+      //         break;
+      //       }
+      //   }
+      child = get_child(child_list, child_tid);
     }
   /* Not found */
   if (child == NULL)
@@ -160,13 +219,11 @@ process_wait (tid_t child_tid UNUSED)
 }
 
 /* Free the current process's resources. */
-void
-process_exit (void)
+
+
+void close_all_file()
 {
   struct thread *cur = thread_current ();
-  uint32_t *pd;
-
-  /* Close all files, release file_nodes */
   struct list *fn_list = &cur->fn_list;
   while (!list_empty (fn_list))
     {
@@ -175,7 +232,11 @@ process_exit (void)
       file_close (node->file);
       palloc_free_page (node);
     }
-  /* Release child processes */
+}
+
+void release_all_child()
+{
+  struct thread *cur = thread_current ();
   struct list *child_list = &cur->child_list;
   while (!list_empty (child_list))
     {
@@ -188,10 +249,47 @@ process_exit (void)
         {
           /* Parent terminated .*/
           child->parent_finish = true;
-          child->parent = NULL;
+          child->father_tid = 0;
         }
     }
+}
+
+void
+process_exit (void)
+{
+  struct thread *cur = thread_current ();
+  uint32_t *pd;
+
+  /* Close all files, release file_nodes */
+  // struct list *fn_list = &cur->fn_list;
+  // while (!list_empty (fn_list))
+  //   {
+  //     struct list_elem *e = list_pop_front (fn_list);
+  //     struct file_node *node = list_entry (e, struct file_node, elem);
+  //     file_close (node->file);
+  //     palloc_free_page (node);
+  //   }
+  close_all_file();
+  /* Release child processes */
+  
+  // struct list *child_list = &cur->child_list;
+  // while (!list_empty (child_list))
+  //   {
+  //     struct list_elem *e = list_pop_front (child_list);
+  //     struct child_process *child = list_entry (e, struct child_process, elem);
+  //     /* Check if child terminated*/
+  //     if (child->finish == true)
+  //       palloc_free_page (child);
+  //     else
+  //       {
+  //         /* Parent terminated .*/
+  //         child->parent_finish = true;
+  //         child->parent = NULL;
+  //       }
+  //   }
+  release_all_child();
   /* Release file for the executable */
+
   if (cur->file)
     {
       file_allow_write (cur->file);
@@ -312,6 +410,16 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
+
+char *make_copy(const char *file_name)
+{
+  char *name_copy,*next = NULL;
+  name_copy = malloc (strlen (file_name) + 1);
+  strlcpy(name_copy, file_name, strlen(file_name) + 1);
+  name_copy = strtok_r (name_copy, " ", &next);
+  return name_copy;
+}
+
 bool
 load (const char *file_name, void (**eip) (void), void **esp)
 {
@@ -329,10 +437,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
 	/* Make a copy */
-	char *name_copy,*next = NULL;
-  name_copy = malloc (strlen (file_name) + 1);
-  strlcpy(name_copy, file_name, strlen(file_name) + 1);
-  name_copy = strtok_r (name_copy, " ", &next);
+	// char *name_copy,*next = NULL;
+
+  // name_copy = malloc (strlen (file_name) + 1);
+  // strlcpy(name_copy, file_name, strlen(file_name) + 1);
+  // name_copy = strtok_r (name_copy, " ", &next);
+
+  char *name_copy = make_copy(file_name);
+
+  
 
   /* Open executable file. */
   file = filesys_open (name_copy);
@@ -512,7 +625,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      //size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_read_bytes;
+      if (read_bytes < PGSIZE)
+        page_read_bytes = read_bytes;
+      else
+        page_read_bytes = PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
@@ -543,67 +661,165 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
-/* Create a minimal stack by mapping a zeroed page at the top of
-   user virtual memory. */
+// /* Create a minimal stack by mapping a zeroed page at the top of
+//    user virtual memory. */
+// static bool
+// setup_stack (void **esp, const char *file_name)
+// {
+//   uint8_t *kpage;
+//   bool success = false;
+
+//   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+//   if (kpage != NULL)
+//     {
+//       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+//       if (success)
+// 				{
+//         	*esp = PHYS_BASE;
+// 					char *temp, *next = NULL;
+//           int i = 0;
+
+//           char *name_copy = malloc (strlen (file_name) + 1);
+//           strlcpy (name_copy, file_name, strlen (file_name) + 1);
+//           int *argv = calloc (128, sizeof(int));
+//           /* Parse filename and arguments */
+//           for (temp = strtok_r (name_copy, " ", &next), i = 0; temp != NULL; temp = strtok_r (NULL, " ", &next), i++)
+// 		        {
+// 		          *esp -= strlen (temp) + 1;
+// 		          memcpy(*esp, temp, strlen (temp) + 1);
+
+// 		          argv[i] = *esp;
+// 		        }
+//            /* Add '0' if not multiple of 4 */
+//           while((int)*esp % 4)
+// 		        {
+// 		          *esp -= sizeof(char);
+// 		          char x = 0;
+// 		          memcpy(*esp, &x, sizeof(char));
+// 		        }
+
+//           int zero = 0;
+//           *esp -= sizeof(int);
+//           memcpy(*esp, &zero, sizeof(int));
+//           /* Add addr to stack, in reverse order */
+//           for(int j = i - 1; j >= 0; j--)
+// 		        {
+// 		          *esp -= sizeof(int);
+// 		          memcpy(*esp, &argv[j], sizeof(int));
+// 		        }
+//           /* Save addr of esp */
+//           int pt = *esp;
+//           *esp -= sizeof(int);
+//           memcpy(*esp, &pt, sizeof(int));
+
+//           /* Save num of arguments */
+//           *esp -= sizeof(int);
+//           memcpy(*esp, &i, sizeof(int));
+//           /* add zero */
+//           *esp -= sizeof(int);
+//           memcpy(*esp, &zero, sizeof(int));
+// 					/* Free after use */
+//           free(name_copy);
+//           free(argv);
+// 				}
+//       else
+//         palloc_free_page (kpage);
+//     }
+//   return success;
+// }
+
+/* Reverse the order of the ARGC pointers to char in ARGV. */
+static void
+reverse (int argc, char **argv) 
+{
+   // MLN added code to reverse the order of the arguments on the stack
+   for (; argc>1; argc -=2, argv++)
+   {
+      char *tmp = argv[0];
+      argv[0] = argv[argc-1];
+      argv[argc-1] = tmp;
+   }
+   return;
+}
+static void*
+push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size) 
+{
+  size_t padsize = ROUND_UP (size, sizeof (uint32_t));
+  if (*ofs < padsize)
+    return NULL;
+
+  *ofs -= padsize;
+  memcpy (kpage + *ofs + (padsize - size), buf, size);
+  return kpage + *ofs + (padsize - size);
+}
+/* Sets up command line arguments in KPAGE, which will be mapped
+   to UPAGE in user space.  The command line arguments are taken
+   from CMD_LINE, separated by spaces.  Sets *ESP to the initial
+   stack pointer for the process. */
 static bool
-setup_stack (void **esp, const char *file_name)
+init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
+               void **esp)
+{
+  size_t ofs = PGSIZE;
+  char *const null = NULL;
+  char *cmd_line_copy;
+  char *karg, *saveptr;
+  int argc;
+  char **argv;
+
+  /* Push a temporary working copy of the command line string. */
+  cmd_line_copy = push (kpage, &ofs, cmd_line, strlen (cmd_line) + 1);
+  if (cmd_line_copy == NULL)
+    return false;
+
+  if (push (kpage, &ofs, &null, sizeof null) == NULL)
+    return false;
+
+  /* Parse the working copy of the command line into arguments
+     and push them in reverse order. */
+  argc = 0;
+  for (karg = strtok_r (cmd_line_copy, " ", &saveptr); karg != NULL;
+       karg = strtok_r (NULL, " ", &saveptr))
+    {
+      void *uarg = upage + (karg - (char *) kpage);
+      if (push (kpage, &ofs, &uarg, sizeof uarg) == NULL)
+        return false;
+      argc++;
+    }
+
+  /* Reverse the order of the command line arguments. */
+  argv = (char **) (upage + ofs);
+  reverse (argc, (char **) (kpage + ofs));
+
+  /* Push argv, argc, "return address". */
+  if (push (kpage, &ofs, &argv, sizeof argv) == NULL
+      || push (kpage, &ofs, &argc, sizeof argc) == NULL
+      || push (kpage, &ofs, &null, sizeof null) == NULL)
+    return false;
+
+  /* Set initial stack pointer. */
+  *esp = upage + ofs;
+  return true;
+}
+
+/* Create a minimal stack by mapping a page at the
+   top of user virtual memory.  Fill in the page using CMD_LINE
+   and sets *ESP to the stack pointer. */
+static bool
+setup_stack (void **esp,const char *cmd_line) 
 {
   uint8_t *kpage;
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL)
+  if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+      success = install_page (upage, kpage, true);
       if (success)
-				{
-        	*esp = PHYS_BASE;
-					char *temp, *next = NULL;
-          int i = 0;
-
-          char *name_copy = malloc (strlen (file_name) + 1);
-          strlcpy (name_copy, file_name, strlen (file_name) + 1);
-          int *argv = calloc (128, sizeof(int));
-          /* Parse filename and arguments */
-          for (temp = strtok_r (name_copy, " ", &next), i = 0; temp != NULL; temp = strtok_r (NULL, " ", &next), i++)
-		        {
-		          *esp -= strlen (temp) + 1;
-		          memcpy(*esp, temp, strlen (temp) + 1);
-
-		          argv[i] = *esp;
-		        }
-           /* Add '0' if not multiple of 4 */
-          while((int)*esp % 4)
-		        {
-		          *esp -= sizeof(char);
-		          char x = 0;
-		          memcpy(*esp, &x, sizeof(char));
-		        }
-
-          int zero = 0;
-          *esp -= sizeof(int);
-          memcpy(*esp, &zero, sizeof(int));
-          /* Add addr to stack, in reverse order */
-          for(int j = i - 1; j >= 0; j--)
-		        {
-		          *esp -= sizeof(int);
-		          memcpy(*esp, &argv[j], sizeof(int));
-		        }
-          /* Save addr of esp */
-          int pt = *esp;
-          *esp -= sizeof(int);
-          memcpy(*esp, &pt, sizeof(int));
-
-          /* Save num of arguments */
-          *esp -= sizeof(int);
-          memcpy(*esp, &i, sizeof(int));
-          /* add zero */
-          *esp -= sizeof(int);
-          memcpy(*esp, &zero, sizeof(int));
-					/* Free after use */
-          free(name_copy);
-          free(argv);
-				}
+      {
+        success = init_cmd_line (kpage, upage, cmd_line, esp);
+      }
       else
         palloc_free_page (kpage);
     }
