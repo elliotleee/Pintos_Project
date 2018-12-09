@@ -13,24 +13,7 @@
 #include "devices/input.h"
 #include "threads/palloc.h"
 
-static void syscall_handler (struct intr_frame *);
-
-void is_valid_addr (const void *addr);
-void is_valid_buffer (void *buffer, unsigned size);
-
-struct file_node *get_node (int fd);
-void halt (void);
-pid_t exec (const char *cmd_line);
-int wait (pid_t pid);
-bool create (const char *file, unsigned initial_size);
-bool remove (const char *file);
-int open (const char *file);
-int filesize (int fd);
-int read (int fd, void *buffer, unsigned size);
-int write (int fd, const void *buffer, unsigned size);
-void seek (int fd, unsigned position);
-unsigned tell (int fd);
-void close (int fd);
+CALL_PROC pfn[21];
 
 struct lock sys_lock;
 
@@ -39,7 +22,126 @@ syscall_init (void)
 {
   lock_init (&sys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+
+  for(int i=0; i<21; i++)
+    pfn[i]=NULL;
+
+  pfn[SYS_WRITE]=IWrite;
+  pfn[SYS_EXIT]=IExit;
+  pfn[SYS_CREATE]=ICreate;
+  pfn[SYS_OPEN]=IOpen;
+  pfn[SYS_CLOSE]=IClose;
+  pfn[SYS_READ]=IRead;
+  pfn[SYS_FILESIZE]=IFileSize;
+  pfn[SYS_EXEC]=IExec;
+  pfn[SYS_WAIT]=IWait;
+  pfn[SYS_SEEK]=ISeek;
+  pfn[SYS_REMOVE]=IRemove;
+  pfn[SYS_TELL]=ITell;
+  pfn[SYS_HALT]=IHalt;
 }
+
+void IWrite(struct intr_frame *f) 
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  int *sys_size = (int *)f->esp + 2;
+  int *sys_size1 = (int *)f->esp + 3;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_addr ((const char *)sys_size);
+  is_valid_addr ((const char *)sys_size1);
+  is_valid_buffer ((void *)(*sys_size), (unsigned)(*sys_size1));
+  f->eax = write (*sys_buffer, (const void *)(*sys_size), (unsigned)(*sys_size1));
+}
+void IExit(struct intr_frame *f) 
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  exit(*sys_buffer);
+}
+void ICreate(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  int *sys_size = (int *)f->esp + 2;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_addr ((const char *)sys_size);
+  is_valid_buffer ((void *)(*sys_buffer), (unsigned)(*sys_size));
+  f->eax = create ((const char*)(*sys_buffer),(unsigned)(*sys_size));
+
+}
+void IOpen(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_buffer ((void *)(*sys_buffer), 0);
+  f->eax = open ((const char *)(*sys_buffer));
+}
+void IClose(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  close(*sys_buffer);
+}
+
+void IRead(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  int *sys_size = (int *)f->esp + 2;
+  int *sys_size1 = (int *)f->esp + 3;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_addr ((const char *)sys_size1);
+  is_valid_buffer ((void *)(*sys_size), (unsigned)(*sys_size1));
+  f->eax = read (*sys_buffer, (void *)(*sys_size), (unsigned)(*sys_size1));
+}
+
+void IFileSize(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  f->eax = filesize (*sys_buffer);
+}
+void IExec(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_buffer ((void *)(*sys_buffer), 0);
+  f->eax = exec ((const char*)(*sys_buffer));
+}
+
+void IWait(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  f->eax = process_wait ((pid_t)(*sys_buffer));
+}
+
+void ISeek(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  int *sys_size = (int *)f->esp + 2;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_addr ((const char *)sys_size);
+  seek(*sys_buffer, (unsigned)(*sys_size));
+}
+
+void IRemove(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  is_valid_buffer ((void *)(*sys_buffer), 0);
+  f->eax = remove ((const char*)(*sys_buffer));
+}
+
+void ITell(struct intr_frame *f)
+{
+  int *sys_buffer = (int *)f->esp + 1;
+  is_valid_addr ((const char *)sys_buffer);
+  f->eax = tell(*sys_buffer);
+}
+void IHalt(struct intr_frame *f)
+{
+  shutdown_power_off ();
+}
+
 
 static void
 syscall_handler (struct intr_frame *f UNUSED)
@@ -48,104 +150,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   is_valid_addr (sys_call);
   if ((int)(*sys_call) < 1 || (int)(*sys_call) > 19)
     exit (-1);
-  int *sys_buffer = (int *)f->esp + 1;
-  int *sys_size = (int *)f->esp + 2;
-  int *sys_size1 = (int *)f->esp + 3;
-
-  switch(*sys_call){
-    case SYS_HALT:
-    {
-      halt ();
-      break;
-    }
-    case SYS_EXIT:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      exit(*sys_buffer);
-      break;
-    }
-    case SYS_EXEC:
-    {
-      /* Check both addr and content. */
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_buffer ((void *)(*sys_buffer), 0);
-      f->eax = exec ((const char*)(*sys_buffer));
-      break;
-    }
-    case SYS_WAIT:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      f->eax = wait ((pid_t)(*sys_buffer));
-      break;
-    }
-    case SYS_CREATE:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_addr ((const char *)sys_size);
-      is_valid_buffer ((void *)(*sys_buffer), (unsigned)(*sys_size));
-      f->eax = create ((const char*)(*sys_buffer),(unsigned)(*sys_size));
-      break;
-    }
-    case SYS_REMOVE:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_buffer ((void *)(*sys_buffer), 0);
-      f->eax = remove ((const char*)(*sys_buffer));
-      break;
-    }
-    case SYS_OPEN:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_buffer ((void *)(*sys_buffer), 0);
-      f->eax = open ((const char *)(*sys_buffer));
-      break;
-    }
-    case SYS_FILESIZE:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      f->eax = filesize (*sys_buffer);
-      break;
-    }
-    case SYS_READ:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_addr ((const char *)sys_size1);
-      is_valid_buffer ((void *)(*sys_size), (unsigned)(*sys_size1));
-      f->eax = read (*sys_buffer, (void *)(*sys_size), (unsigned)(*sys_size1));
-      break;
-    }
-
-    case SYS_WRITE:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_addr ((const char *)sys_size);
-      is_valid_addr ((const char *)sys_size1);
-      is_valid_buffer ((void *)(*sys_size), (unsigned)(*sys_size1));
-      f->eax = write (*sys_buffer, (const void *)(*sys_size), (unsigned)(*sys_size1));
-
-      break;
-    }
-
-    case SYS_SEEK:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      is_valid_addr ((const char *)sys_size);
-      seek(*sys_buffer, (unsigned)(*sys_size));
-      break;
-    }
-    case SYS_TELL:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      f->eax = tell(*sys_buffer);
-      break;
-    }
-    case SYS_CLOSE:
-    {
-      is_valid_addr ((const char *)sys_buffer);
-      close(*sys_buffer);
-      break;
-    }
-  }
+  pfn[*sys_call](f);
 }
 
 
@@ -177,16 +182,6 @@ is_valid_addr (const void *addr)
       exit (-1);
     }
 }
-/*
-char *
-user_to_kernel_vaddr (const char *vaddr)
-{
-  is_valid_addr (vaddr);
-  char *ptr = pagedir_get_page(thread_current()->pagedir, (const void *)vaddr);
-  if (!ptr)
-    exit(-1);
-  return ptr;
-}*/
 
 void
 is_valid_buffer (void *buffer, unsigned size)
@@ -199,11 +194,6 @@ is_valid_buffer (void *buffer, unsigned size)
     }
 }
 
-void
-halt (void)
-{
-  shutdown_power_off ();
-}
 
 void
 exit (int status)
@@ -224,11 +214,6 @@ exec (const char *cmd_line)
   return pid;
 }
 
-int
-wait (pid_t pid)
-{
-  return process_wait (pid);
-}
 
 bool
 create (const char *file, unsigned initial_size)
