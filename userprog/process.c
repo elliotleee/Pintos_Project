@@ -87,7 +87,7 @@ start_process (void *file_name)
 
 
   struct thread *t = thread_current();
-  char *file_name = child->file_name;
+ // char *file_name = child->file_name;
   struct intr_frame if_;
   bool success;
 
@@ -96,7 +96,9 @@ start_process (void *file_name)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  char *token = NULL, *save_prt = NULL;
+  token = strtok_r(fn_copy, " ", &save_prt );
+  success = load (token, &if_.eip, &if_.esp);
 
 
   child->tid = success ? t->tid : -1;
