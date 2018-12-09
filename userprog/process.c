@@ -59,8 +59,7 @@ process_execute (const char *file_name)
   /* Wait for loading child */
   sema_down (&t->wait);
 
-  //if (child->tid > -1)
-  //  list_push_back (&thread_current()->child_list, &child->elem);
+  
   free(name_copy);
   palloc_free_page (fn_copy);
   return tid;
@@ -108,7 +107,8 @@ start_process (void *file_name)
   if (!success)
     exit (-1);
 
-
+  if (child->tid > -1)
+    list_push_back (&thread_current()->child_list, &child->elem);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
