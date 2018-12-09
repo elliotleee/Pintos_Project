@@ -161,9 +161,9 @@ get_node (int fd)
   struct thread *cur = thread_current ();
   struct list_elem *e;
   /* Search node in file_list */
-  if (list_empty(&cur->fn_list))
+  if (list_empty(&cur->file_list))
     return NULL;
-  for(e = list_begin (&cur->fn_list); e != list_end (&cur->fn_list); e = list_next (e))
+  for(e = list_begin (&cur->file_list); e != list_end (&cur->file_list); e = list_next (e))
     {
       node = list_entry(e, struct file_node, elem);
       if(node->fd == fd)
@@ -200,7 +200,7 @@ exit (int status)
 {
   struct child_process *child = thread_current ()->child;
   if (child != NULL)
-    child->exit = status;
+    child->ret = status;
   printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
 }
@@ -252,12 +252,12 @@ open (const char *file)
   }
   node->file = file_open;
 
-  struct list* fn_list = &thread_current()->fn_list;
-  if (list_empty (fn_list))
+  struct list* file_list = &thread_current()->file_list;
+  if (list_empty (file_list))
     node->fd = 3;
   else
-    node->fd = (list_entry (list_back (fn_list), struct file_node, elem)->fd) + 1;
-  list_push_back(fn_list, &node->elem);
+    node->fd = (list_entry (list_back (file_list), struct file_node, elem)->fd) + 1;
+  list_push_back(file_list, &node->elem);
   lock_release (&sys_lock);
   return node->fd;
 }

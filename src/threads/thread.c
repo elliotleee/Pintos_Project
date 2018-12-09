@@ -466,7 +466,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   /* Do some init here, before push back */
 	t->ticks_sleep = 0;
-  list_init(&t->fn_list);
+  list_init(&t->file_list);
   t->child = NULL;
   list_init(&t->child_list);
   sema_init (&t->wait, 0);

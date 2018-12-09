@@ -96,13 +96,12 @@ struct thread
 
 		int64_t ticks_sleep;                /* Record how much time to sleep. */
 
-    struct list fn_list;                /* File desc list */
+    struct list file_list;                /* File desc list */
     struct child_process *child;        /* Strore self-as-child info */
     struct list child_list;             /* List of child process */
     struct semaphore wait;              /* Wait for child to load */
     struct file *file;                  /* Executing file */
 
-    tid_t father_tid; //~
 
 
 #ifdef USERPROG

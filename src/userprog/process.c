@@ -32,10 +32,10 @@ struct child_process* init_child(char* fn_copy){
   child->file_name = fn_copy;
   child->tid = -1;
   child->father_tid = 0;
-  child->waiting = false;
-  child->finish = false;
+  child->bewaited = false;
+  child->savedata = false;
   child->parent_finish = false;
-  child->exit = -1;
+  child->ret = -1;
 }
 
 tid_t
@@ -167,17 +167,17 @@ process_wait (tid_t child_tid UNUSED)
   if (child == NULL)
     return -1;
   /* Have been waited*/
-  if (child->waiting)
+  if (child->bewaited)
     return -1;
-  child->waiting = true;
+  child->bewaited = true;
 
   /* Wait until child terminate */
-  if (!child->finish)
+  if (!child->savedata)
     sema_down (&child->child_wait);
   list_remove (&child->elem);
-  int exitcode = child->exit;
+  int retcode = child->ret;
   palloc_free_page(child);
-  return exitcode;
+  return retcode;
 }
 
 /* Free the current process's resources. */
@@ -186,10 +186,10 @@ process_wait (tid_t child_tid UNUSED)
 void close_all_file()
 {
   struct thread *cur = thread_current ();
-  struct list *fn_list = &cur->fn_list;
-  while (!list_empty (fn_list))
+  struct list *file_list = &cur->file_list;
+  while (!list_empty (file_list))
     {
-      struct list_elem *e = list_pop_front (fn_list);
+      struct list_elem *e = list_pop_front (file_list);
       struct file_node *node = list_entry (e, struct file_node, elem);
       file_close (node->file);
       palloc_free_page (node);
@@ -205,7 +205,7 @@ void release_all_child()
       struct list_elem *e = list_pop_front (child_list);
       struct child_process *child = list_entry (e, struct child_process, elem);
       /* Check if child terminated*/
-      if (child->finish == true)
+      if (child->savedata == true)
         palloc_free_page (child);
       else
         {
@@ -231,7 +231,7 @@ process_exit (void)
       file_allow_write (cur->file);
       file_close (cur->file);
     }
-  cur->child->finish = true;
+  cur->child->savedata = true;
   bool parent_finish = cur->child->parent_finish;
   /* */
   sema_up (&cur->child->child_wait);
