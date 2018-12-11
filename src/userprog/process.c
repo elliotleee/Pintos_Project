@@ -134,7 +134,7 @@ start_process (void *child_)
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
    child of the calling process, or if process_wait() has already
-   been successfully called for the given TID, returns -1
+   been successfully called for the given TID, returns -12
    immediately, without waiting.
 
    This function will be implemented in problem 2-2.  For now, it
@@ -715,3 +715,5 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+
