@@ -246,25 +246,27 @@ int open (const char *file)
       node->fd = 3;
     else
       node2 = list_entry (list_back (file_list), struct file_node, elem)
-      node->fd = (node2->fd) + 1;
+      int node2fd = node2->fd;
+      node->fd = node2fd + 1;
     list_push_back(file_list, &node->elem);
     lock_release (&sys_lock);
-    return node->fd;
+    return (node2fd + 1);
   }
 }
 
 int filesize (int fd)
 {
-  struct file_node *node = NULL;
+  struct file_node *node;
   lock_acquire (&sys_lock);
   node = get_node (fd);
-  if (node == NULL) {
+  if (!node) {
     lock_release (&sys_lock);
     return -1;
+  }else{
+    int temp = file_length(node->file);
+    lock_release (&sys_lock);
+    return temp;
   }
-  int temp = file_length(node->file);
-  lock_release (&sys_lock);
-  return temp;
 }
 
 int read (int fd, void *buffer, unsigned size){
