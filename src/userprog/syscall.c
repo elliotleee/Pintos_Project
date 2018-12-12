@@ -56,7 +56,11 @@ void IExit(struct intr_frame *f)
 {
   int *sys_buffer = (int *)f->esp + 1;
   is_valid_addr ((const char *)sys_buffer);
-  exit(*sys_buffer);
+  struct child_process *child = thread_current ()->child;
+  if (child != NULL)
+    child->ret = status;
+  printf ("%s: exit(%d)\n", thread_current ()->name, *sys_buffer);
+  thread_exit ();
 }
 void ICreate(struct intr_frame *f)
 {
@@ -104,7 +108,11 @@ void IExec(struct intr_frame *f)
   int *sys_buffer = (int *)f->esp + 1;
   is_valid_addr ((const char *)sys_buffer);
   is_valid_buffer ((void *)(*sys_buffer), 0);
-  f->eax = exec ((const char*)(*sys_buffer));
+
+  lock_acquire (&sys_lock);
+  tid_t tid = process_execute ((const char*)(*sys_buffer));
+  lock_release (&sys_lock);
+  f->eax = (pid_t)tid;
 }
 
 void IWait(struct intr_frame *f)
@@ -203,15 +211,6 @@ exit (int status)
     child->ret = status;
   printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
-}
-
-pid_t
-exec (const char *cmd_line)
-{
-  lock_acquire (&sys_lock);
-  pid_t pid = (pid_t)process_execute (cmd_line);
-  lock_release (&sys_lock);
-  return pid;
 }
 
 

@@ -36,6 +36,7 @@ struct child_process* init_child(char* fn_copy){
   child->savedata = false;
   child->parent_finish = false;
   child->ret = -1;
+  return child;
 }
 
 tid_t
