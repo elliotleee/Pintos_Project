@@ -70,10 +70,11 @@ int filesize (int fd)
 void is_valid_buffer (void *buffer, unsigned size)
 {
   char *temp = (char *)buffer;
-
+  const char* consttemp;
+  consttemp =(const char *)temp;
   for (unsigned i = 0; i <= size; i++)
     {
-      is_valid_addr ((const char *)temp);
+      is_valid_addr (consttemp);
       temp += 1;
     }
 }
