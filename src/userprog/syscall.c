@@ -76,7 +76,7 @@ void IClose(struct intr_frame *f)
 {
   int *pointer = (int *)f->esp;
   is_valid_addr ((const char *)(pointer + 1));
-  close(*Buffer);
+  close(*(pointer + 1));
 }
 
 void IRead(struct intr_frame *f)
@@ -114,7 +114,7 @@ void ISeek(struct intr_frame *f)
   int *pointer = (int *)f->esp;
   is_valid_addr ((const char *)(pointer + 1));
   is_valid_addr ((const char *)(pointer + 2));
-  seek(*Buffer, (unsigned)(*(pointer + 2)));
+  seek(*(pointer + 1), (unsigned)(*(pointer + 2)));
 }
 
 void IRemove(struct intr_frame *f)
@@ -143,8 +143,11 @@ syscall_handler (struct intr_frame *f UNUSED)
   int *sys_call = (int *)f->esp;
   is_valid_addr (sys_call);
 
-  if ((int)(*sys_call) < 1 || (int)(*sys_call) > 19)
+  if ((int)(*sys_call) <= 0)
     exit (-1);
+  else if( (int)(*sys_call) >= 20){
+    exit (-1);
+  }
 
   pfn[*sys_call](f);
 }
