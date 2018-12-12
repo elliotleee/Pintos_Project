@@ -314,7 +314,8 @@ int write (int fd, const void *buffer, unsigned size)
 void seek (int fd, unsigned position)
 {
   lock_acquire (&sys_lock);
-  struct file_node *node = get_node (fd);
+  struct file_node *node;
+  node = get_node (fd);
   if (node == NULL || node->file == NULL)
     {
       lock_release (&sys_lock);
