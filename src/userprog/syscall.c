@@ -47,12 +47,12 @@ void IWrite(struct intr_frame *f)
   int *Buffer = pointer + 1;
   int *Size_ = pointer + 2;
   int *Size_1 =pointer + 3;
-
-  is_valid_addr ((const char *)Buffer);
+  
+  is_valid_addr ((const char *)pointer + 1);
   is_valid_addr ((const char *)Size_);
   is_valid_addr ((const char *)Size_1);
   is_valid_buffer ((void *)(*Size_), (unsigned)(*Size_1));
-  f->eax = write (*Buffer, (const void *)(*Size_), (unsigned)(*Size_1));
+  f->eax = write (*(pointer + 1), (const void *)(*Size_), (unsigned)(*Size_1));
 }
 void IExit(struct intr_frame *f) 
 {
@@ -150,8 +150,11 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   int *sys_call = (int *)f->esp;
   is_valid_addr (sys_call);
+
   if ((int)(*sys_call) < 1 || (int)(*sys_call) > 19)
     exit (-1);
+
+  if *sys_call = 
   pfn[*sys_call](f);
 }
 
