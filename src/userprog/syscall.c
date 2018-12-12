@@ -217,9 +217,8 @@ exec (const char *cmd_line)
 bool
 create (const char *file, unsigned initial_size)
 {
-  bool temp;
   lock_acquire (&sys_lock);
-  temp =  filesys_create (file, initial_size);
+  bool temp = filesys_create (file, initial_size);
   lock_release (&sys_lock);
   return temp;
 }
@@ -227,9 +226,8 @@ create (const char *file, unsigned initial_size)
 bool
 remove (const char *file)
 {
-  bool temp;
   lock_acquire (&sys_lock);
-  temp =  filesys_remove (file);
+  bool temp =  filesys_remove (file);
   lock_release (&sys_lock);
   return temp;
 }
@@ -237,8 +235,7 @@ remove (const char *file)
 int
 open (const char *file)
 {
-  struct file_node* node = palloc_get_page(0);
-  if (!node)
+  if (struct file_node* node = palloc_get_page(0))
     return -1;
 
   struct file *file_open;
