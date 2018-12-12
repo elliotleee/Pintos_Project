@@ -41,6 +41,42 @@ syscall_init (void)
   pfn[SYS_HALT]=IHalt;
 }
 
+void is_valid_addr (const void *addr)
+{
+  struct thread* t = thread_current ();
+  if (!addr|| !is_user_vaddr (addr) || !pagedir_get_page (t->pagedir, addr))
+    {
+      if (lock_held_by_current_thread (&sys_lock))
+        lock_release (&sys_lock);
+      exit (-1);
+    }
+}
+
+int filesize (int fd)
+{
+  struct file_node *node;
+  lock_acquire (&sys_lock);
+  node = get_node (fd);
+  if (!node) {
+    lock_release (&sys_lock);
+    return -1;
+  }else{
+    int temp = file_length(node->file);
+    lock_release (&sys_lock);
+    return temp;
+  }
+}
+
+void is_valid_buffer (void *buffer, unsigned size)
+{
+  char *temp = (char *)buffer;
+
+  for (unsigned i = 0; i <= size; i++)
+    {
+      is_valid_addr ((const char *)temp);
+      temp += 1;
+    }
+}
 void IWrite(struct intr_frame *f) 
 {
   int *pointer = (int *)f->esp;
@@ -313,25 +349,6 @@ struct file_node * get_node (int fd)
   return NULL;
 }
 
-void is_valid_addr (const void *addr)
-{
-  if (addr == NULL || !is_user_vaddr (addr) || pagedir_get_page (thread_current ()->pagedir, addr) == NULL)
-    {
-      if (lock_held_by_current_thread (&sys_lock))
-        lock_release (&sys_lock);
-      exit (-1);
-    }
-}
-
-void is_valid_buffer (void *buffer, unsigned size)
-{
-  char *temp = (char *)buffer;
-  for (unsigned i = 0; i <= size; i++)
-    {
-      is_valid_addr ((const char *)temp);
-      temp++;
-    }
-}
 
 
 
@@ -339,20 +356,8 @@ void is_valid_buffer (void *buffer, unsigned size)
 
 
 
-int filesize (int fd)
-{
-  struct file_node *node;
-  lock_acquire (&sys_lock);
-  node = get_node (fd);
-  if (!node) {
-    lock_release (&sys_lock);
-    return -1;
-  }else{
-    int temp = file_length(node->file);
-    lock_release (&sys_lock);
-    return temp;
-  }
-}
+
+
 
 
 
