@@ -17,8 +17,7 @@ CALL_PROC pfn[21];
 
 struct lock sys_lock;
 
-void
-syscall_init (void)
+void syscall_init (void)
 {
   lock_init (&sys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -85,21 +84,20 @@ void IWrite(struct intr_frame *f)
   is_valid_addr ((const char *)pointer + 1);
   is_valid_addr ((const char *)(pointer + 2));
   is_valid_buffer ((void *)(*(pointer + 2)), (unsigned)(*(pointer + 3)));
+
   f->eax = write (*(pointer + 1), (const void *)(*(pointer + 2)), (unsigned)(*(pointer + 3)));
 }
 
 int write (int fd, const void *buffer, unsigned size)
 {
   lock_acquire (&sys_lock);
-  if(fd == STDOUT_FILENO)
-    {
+  if(fd == STDOUT_FILENO){
       putbuf (buffer, size);
       lock_release (&sys_lock);
       return size;
-    }
+  }
   struct file_node *node = get_node (fd);
-  if (node == NULL || node->file == NULL)
-    {
+  if (!node || !(node->file)){
       lock_release (&sys_lock);
       return -1;
     }
@@ -187,15 +185,15 @@ void close (int fd)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
-  if (node == NULL || node->file == NULL)
-    {
+  if (!node || !node->file){
       lock_release (&sys_lock);
       return;
-    }
-  file_close(node->file);
-  list_remove(&node->elem);
-  palloc_free_page(node);
-  lock_release (&sys_lock);
+  }else{
+    file_close(node->file);
+    list_remove(&node->elem);
+    palloc_free_page(node);
+    lock_release (&sys_lock);
+  }
 }
 void IRead(struct intr_frame *f)
 {
@@ -209,10 +207,11 @@ void IRead(struct intr_frame *f)
 int read (int fd, void *buffer, unsigned size){
   int sizeint = (int)size;
   lock_acquire (&sys_lock);
-  if(fd == STDIN_FILENO)
-    {
-      for(unsigned i = 0; i < size; i++)
+
+  if(fd == STDIN_FILENO){
+      for(unsigned i = 0; i < size; i++){
         *(uint8_t *)(buffer + i) = input_getc ();
+      }
       lock_release (&sys_lock);
       return sizeint;
     }
