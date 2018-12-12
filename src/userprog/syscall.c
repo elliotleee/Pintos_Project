@@ -65,11 +65,7 @@ void ICreate(struct intr_frame *f)
   is_valid_addr ((const char *)sys_buffer);
   is_valid_addr ((const char *)sys_size);
   is_valid_buffer ((void *)(*sys_buffer), (unsigned)(*sys_size));
-
-  lock_acquire (&sys_lock);
-  bool temp =  filesys_create ((const char*)(*sys_buffer), (unsigned)(*sys_size));
-  lock_release (&sys_lock);
-  f->eax = temp;
+  f->eax = create ((const char*)(*sys_buffer),(unsigned)(*sys_size));
 
 }
 void IOpen(struct intr_frame *f)
@@ -157,22 +153,17 @@ syscall_handler (struct intr_frame *f UNUSED)
   pfn[*sys_call](f);
 }
 
-bool check_fnlist(){
-  if (list_empty(&thread_current ()->fn_list))
-    return 1;
-  else 
-    return 0;
-}
 
 struct file_node *
 get_node (int fd)
 {
   struct file_node *node = NULL;
+  struct thread *cur = thread_current ();
   struct list_elem *e;
-  
-  if (check_fnlist())
+  /* Search node in file_list */
+  if (list_empty(&cur->file_list))
     return NULL;
-  for(e = list_begin (&thread_current ()->fn_list); e != list_end (&thread_current ()->fn_list); e = list_next (e))
+  for(e = list_begin (&cur->file_list); e != list_end (&cur->file_list); e = list_next (e))
     {
       node = list_entry(e, struct file_node, elem);
       if(node->fd == fd)
@@ -180,7 +171,6 @@ get_node (int fd)
     }
   return NULL;
 }
-
 
 void
 is_valid_addr (const void *addr)
@@ -211,22 +201,29 @@ exit (int status)
   struct child_process *child = thread_current ()->child;
   if (child != NULL)
     child->ret = status;
-  //printf ("%s: exit(%d)\n", thread_current ()->name, status);
+  printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
 }
 
 pid_t
 exec (const char *cmd_line)
 {
-  tid_t tid;
   lock_acquire (&sys_lock);
-  tid = process_execute (cmd_line);
+  pid_t pid = (pid_t)process_execute (cmd_line);
   lock_release (&sys_lock);
-  return (pid_t)tid;
+  return pid;
 }
 
 
-
+bool
+create (const char *file, unsigned initial_size)
+{
+  bool temp;
+  lock_acquire (&sys_lock);
+  temp =  filesys_create (file, initial_size);
+  lock_release (&sys_lock);
+  return temp;
+}
 
 bool
 remove (const char *file)

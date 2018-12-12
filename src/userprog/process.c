@@ -36,7 +36,6 @@ struct child_process* init_child(char* fn_copy){
   child->savedata = false;
   child->parent_finish = false;
   child->ret = -1;
-  return child;
 }
 
 tid_t
@@ -44,6 +43,8 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
@@ -52,6 +53,7 @@ process_execute (const char *file_name)
   sema_init (&child->child_wait, 0);
   char *name_copy = make_copy(file_name);
 
+  /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name_copy, PRI_DEFAULT, start_process, child);
   if (tid == TID_ERROR)
     {
@@ -68,9 +70,11 @@ process_execute (const char *file_name)
     if(t->tid == tid) break;  
   }
 
+
+  /* Wait for loading child */
   sema_down (&t->wait);
 
-  if (child->tid >= 0)
+  if (child->tid > -1)
     list_push_back (&thread_current()->child_list, &child->elem);
   free(name_copy);
   palloc_free_page (fn_copy);
@@ -97,22 +101,31 @@ static void
 start_process (void *child_)
 {
   struct child_process *child = child_;
+  struct thread *t = thread_current();
+  char *file_name = child->file_name;
   struct intr_frame if_;
-  struct thread *t = thread_current()
+  bool success;
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  bool success = load (child->file_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp);
 
   child_success(&child, success, &t);
   t->child = child;
   sema_up (&t->wait);
 
-  if (success == 0)
+  if (!success)
     exit (-1);
 
+  /* Start the user process by simulating a return from an
+     interrupt, implemented by intr_exit (in
+     threads/intr-stubs.S).  Because intr_exit takes all of its
+     arguments on the stack in the form of a `struct intr_frame',
+     we just point the stack pointer (%esp) to our stack frame
+     and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
@@ -121,7 +134,7 @@ start_process (void *child_)
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
    child of the calling process, or if process_wait() has already
-   been successfully called for the given TID, returns -12
+   been successfully called for the given TID, returns -1
    immediately, without waiting.
 
    This function will be implemented in problem 2-2.  For now, it
@@ -360,11 +373,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
 	/* Make a copy */
-	// char *name_copy,*next = NULL;
-
-  // name_copy = malloc (strlen (file_name) + 1);
-  // strlcpy(name_copy, file_name, strlen(file_name) + 1);
-  // name_copy = strtok_r (name_copy, " ", &next);
 
   char *name_copy = make_copy(file_name);
 
@@ -702,5 +710,3 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
-
-
