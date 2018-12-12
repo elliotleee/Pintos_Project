@@ -157,12 +157,13 @@ struct file_node *
 get_node (int fd)
 {
   struct file_node *node = NULL;
-  struct thread *cur = thread_current ();
-  struct list_elem *e;
+  struct thread *t = thread_current ();
+  
   /* Search node in file_list */
-  if (list_empty(&cur->file_list))
+  if (list_empty(&t->file_list))
     return NULL;
-  for(e = list_begin (&cur->file_list); e != list_end (&cur->file_list); e = list_next (e))
+
+  for(struct list_elem *e = list_begin (&t->file_list); e != list_end (&t->file_list); e = list_next (e))
     {
       node = list_entry(e, struct file_node, elem);
       if(node->fd == fd)
