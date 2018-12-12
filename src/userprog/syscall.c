@@ -137,8 +137,7 @@ void IHalt(struct intr_frame *f)
 }
 
 
-static void
-syscall_handler (struct intr_frame *f UNUSED)
+static void syscall_handler (struct intr_frame *f UNUSED)
 {
   int *sys_call = (int *)f->esp;
   is_valid_addr (sys_call);
@@ -153,8 +152,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 
-struct file_node *
-get_node (int fd)
+struct file_node * get_node (int fd)
 {
   struct file_node *node = NULL;
   struct thread *t = thread_current ();
@@ -172,8 +170,7 @@ get_node (int fd)
   return NULL;
 }
 
-void
-is_valid_addr (const void *addr)
+void is_valid_addr (const void *addr)
 {
   if (addr == NULL || !is_user_vaddr (addr) || pagedir_get_page (thread_current ()->pagedir, addr) == NULL)
     {
@@ -183,8 +180,7 @@ is_valid_addr (const void *addr)
     }
 }
 
-void
-is_valid_buffer (void *buffer, unsigned size)
+void is_valid_buffer (void *buffer, unsigned size)
 {
   char *temp = (char *)buffer;
   for (unsigned i = 0; i <= size; i++)
@@ -195,8 +191,7 @@ is_valid_buffer (void *buffer, unsigned size)
 }
 
 
-void
-exit (int status)
+void exit (int status)
 {
   if (thread_current ()->child)
     thread_current ()->child->ret = status;
@@ -204,8 +199,7 @@ exit (int status)
   thread_exit ();
 }
 
-pid_t
-exec (const char *cmd_line)
+pid_t exec (const char *cmd_line)
 {
   lock_acquire (&sys_lock);
   pid_t pid = (pid_t)process_execute (cmd_line);
@@ -214,8 +208,7 @@ exec (const char *cmd_line)
 }
 
 
-bool
-create (const char *file, unsigned initial_size)
+bool create (const char *file, unsigned initial_size)
 {
   lock_acquire (&sys_lock);
   bool temp = filesys_create (file, initial_size);
@@ -223,8 +216,7 @@ create (const char *file, unsigned initial_size)
   return temp;
 }
 
-bool
-remove (const char *file)
+bool remove (const char *file)
 {
   lock_acquire (&sys_lock);
   bool temp =  filesys_remove (file);
@@ -232,8 +224,7 @@ remove (const char *file)
   return temp;
 }
 
-int
-open (const char *file)
+int open (const char *file)
 {
   struct file_node* node = palloc_get_page(0);
   if (node == NULL)
@@ -260,8 +251,7 @@ open (const char *file)
   }
 }
 
-int
-filesize (int fd)
+int filesize (int fd)
 {
   struct file_node *node = NULL;
   lock_acquire (&sys_lock);
@@ -275,16 +265,16 @@ filesize (int fd)
   return temp;
 }
 
-int
-read (int fd, void *buffer, unsigned size)
+int read (int fd, void *buffer, unsigned size)
 {
+  int sizeint = (int)size
   lock_acquire (&sys_lock);
   if(fd == STDIN_FILENO)
     {
       for(unsigned i = 0; i < size; i++)
         *(uint8_t *)(buffer + i) = input_getc ();
       lock_release (&sys_lock);
-      return (int)size;
+      return sizeint;
     }
 
   struct file_node *node = get_node (fd);
@@ -298,8 +288,7 @@ read (int fd, void *buffer, unsigned size)
   return temp;
 }
 
-int
-write (int fd, const void *buffer, unsigned size)
+int write (int fd, const void *buffer, unsigned size)
 {
   lock_acquire (&sys_lock);
   if(fd == STDOUT_FILENO)
@@ -319,8 +308,7 @@ write (int fd, const void *buffer, unsigned size)
   return temp;
 }
 
-void
-seek (int fd, unsigned position)
+void seek (int fd, unsigned position)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
@@ -333,8 +321,7 @@ seek (int fd, unsigned position)
   lock_release (&sys_lock);
 }
 
-unsigned
-tell (int fd)
+unsigned tell (int fd)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
@@ -348,8 +335,7 @@ tell (int fd)
   return temp;
 }
 
-void
-close (int fd)
+void close (int fd)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
