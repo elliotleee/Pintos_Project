@@ -232,6 +232,7 @@ int open (const char *file)
   else{
     lock_acquire (&sys_lock);
     struct file* file_open = filesys_open(file);
+    struct file_node *node2 = NULL;
     if (file_open == NULL) {
       palloc_free_page (node);
       lock_release (&sys_lock);
@@ -244,7 +245,8 @@ int open (const char *file)
     if (emptymark)
       node->fd = 3;
     else
-      node->fd = (list_entry (list_back (file_list), struct file_node, elem)->fd) + 1;
+      node2 = list_entry (list_back (file_list), struct file_node, elem)
+      node->fd = (node2->fd) + 1;
     list_push_back(file_list, &node->elem);
     lock_release (&sys_lock);
     return node->fd;
@@ -265,9 +267,8 @@ int filesize (int fd)
   return temp;
 }
 
-int read (int fd, void *buffer, unsigned size)
-{
-  int sizeint = (int)size
+int read (int fd, void *buffer, unsigned size){
+  int sizeint = (int)size;
   lock_acquire (&sys_lock);
   if(fd == STDIN_FILENO)
     {
