@@ -44,100 +44,92 @@ syscall_init (void)
 void IWrite(struct intr_frame *f) 
 {
   int *pointer = (int *)f->esp;
-  int *Buffer = pointer + 1;
-  int *Size_ = pointer + 2;
-  int *Size_1 =pointer + 3;
   
   is_valid_addr ((const char *)pointer + 1);
-  is_valid_addr ((const char *)Size_);
-  is_valid_addr ((const char *)Size_1);
-  is_valid_buffer ((void *)(*Size_), (unsigned)(*Size_1));
-  f->eax = write (*(pointer + 1), (const void *)(*Size_), (unsigned)(*Size_1));
+  is_valid_addr ((const char *)(pointer + 2));
+  is_valid_buffer ((void *)(*(pointer + 2)), (unsigned)(*(pointer + 3)));
+  f->eax = write (*(pointer + 1), (const void *)(*(pointer + 2)), (unsigned)(*(pointer + 3)));
 }
 void IExit(struct intr_frame *f) 
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  exit(*Buffer);
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  exit(*(pointer + 1));
 }
 void ICreate(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  int *Size_ = (int *)f->esp + 2;
-  is_valid_addr ((const char *)Buffer);
-  is_valid_addr ((const char *)Size_);
-  is_valid_buffer ((void *)(*Buffer), (unsigned)(*Size_));
-  f->eax = create ((const char*)(*Buffer),(unsigned)(*Size_));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  is_valid_addr ((const char *)(pointer + 2));
+  is_valid_buffer ((void *)(*(pointer + 1)), (unsigned)(*(pointer + 2)));
+  f->eax = create ((const char*)(*(pointer + 1)),(unsigned)(*(pointer + 2)));
 
 }
 void IOpen(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  is_valid_buffer ((void *)(*Buffer), 0);
-  f->eax = open ((const char *)(*Buffer));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  is_valid_buffer ((void *)(*(pointer + 1)), 0);
+  f->eax = open ((const char *)(*(pointer + 1)));
 }
 void IClose(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
   close(*Buffer);
 }
 
 void IRead(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  int *Size_ = (int *)f->esp + 2;
-  int *Size_1 = (int *)f->esp + 3;
-  is_valid_addr ((const char *)Buffer);
-  is_valid_addr ((const char *)Size_1);
-  is_valid_buffer ((void *)(*Size_), (unsigned)(*Size_1));
-  f->eax = read (*Buffer, (void *)(*Size_), (unsigned)(*Size_1));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  is_valid_addr ((const char *)(pointer + 3));
+  is_valid_buffer ((void *)(*(pointer + 2)), (unsigned)(*(pointer + 3)));
+  f->eax = read (*(pointer + 1), (void *)(*(pointer + 2)), (unsigned)(*(pointer + 3)));
 }
 
 void IFileSize(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  f->eax = filesize (*Buffer);
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  f->eax = filesize (*(pointer + 1));
 }
 void IExec(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  is_valid_buffer ((void *)(*Buffer), 0);
-  f->eax = exec ((const char*)(*Buffer));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  is_valid_buffer ((void *)(*(pointer + 1)), 0);
+  f->eax = exec ((const char*)(*(pointer + 1)));
 }
 
 void IWait(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  f->eax = process_wait ((pid_t)(*Buffer));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  f->eax = process_wait ((pid_t)(*(pointer + 1)));
 }
 
 void ISeek(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  int *Size_ = (int *)f->esp + 2;
-  is_valid_addr ((const char *)Buffer);
-  is_valid_addr ((const char *)Size_);
-  seek(*Buffer, (unsigned)(*Size_));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  is_valid_addr ((const char *)(pointer + 2));
+  seek(*Buffer, (unsigned)(*(pointer + 2)));
 }
 
 void IRemove(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  is_valid_buffer ((void *)(*Buffer), 0);
-  f->eax = remove ((const char*)(*Buffer));
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  is_valid_buffer ((void *)(*(pointer + 1)), 0);
+  f->eax = remove ((const char*)(*(pointer + 1)));
 }
 
 void ITell(struct intr_frame *f)
 {
-  int *Buffer = (int *)f->esp + 1;
-  is_valid_addr ((const char *)Buffer);
-  f->eax = tell(*Buffer);
+  int *pointer = (int *)f->esp;
+  is_valid_addr ((const char *)(pointer + 1));
+  f->eax = tell(*(pointer + 1));
 }
 void IHalt(struct intr_frame *f)
 {
@@ -154,7 +146,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   if ((int)(*sys_call) < 1 || (int)(*sys_call) > 19)
     exit (-1);
 
-  if *sys_call = 
   pfn[*sys_call](f);
 }
 
