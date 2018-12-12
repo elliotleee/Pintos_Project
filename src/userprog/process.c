@@ -143,7 +143,9 @@ start_process (void *child_)
 struct child_process *get_child(struct list *child_list, tid_t child_tid)
 {
   struct list_elem *e = NULL;
-  for (e = list_front(child_list); e != list_end(child_list); e = list_next (e))
+  struct list_elem *start = list_front(child_list);
+  struct list_elem *end = list_end(child_list);
+  for (e = start; e != end; e = list_next (e))
         {
           struct child_process *temp = list_entry (e, struct child_process, elem);
           if (temp->tid == child_tid)
@@ -350,8 +352,9 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 char *make_copy(const char *file_name)
 {
   char *name_copy,*next = NULL;
-  name_copy = malloc (strlen (file_name) + 1);
-  strlcpy(name_copy, file_name, strlen(file_name) + 1);
+  int file_len = strlen (file_name) + 1;
+  name_copy = malloc (file_len);
+  strlcpy(name_copy, file_name, file_len);
   name_copy = strtok_r (name_copy, " ", &next);
   return name_copy;
 }
@@ -371,18 +374,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
-
-	/* Make a copy */
-
   char *name_copy = make_copy(file_name);
-
-  
-
   /* Open executable file. */
   file = filesys_open (name_copy);
-
 	/* Free the copy */
-	free (name_copy);
+  free (name_copy);
   if (file == NULL)
     {
       printf ("load: %s: open failed\n", file_name);
@@ -598,10 +594,11 @@ static void
 reverse (int argc, char **argv) 
 {
    // MLN added code to reverse the order of the arguments on the stack
-   for (; argc>1; argc -=2, argv++)
+   for (; argc>1; argc = argc-2, argv++)
    {
       char *tmp = argv[0];
-      argv[0] = argv[argc-1];
+      char *tmp1 = argv[argc-1];
+      argv[0] = tmp1;
       argv[argc-1] = tmp;
    }
    return;
