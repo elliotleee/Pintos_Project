@@ -58,7 +58,7 @@ void IExit(struct intr_frame *f)
   is_valid_addr ((const char *)sys_buffer);
   struct child_process *child = thread_current ()->child;
   if (child != NULL)
-    child->ret = status;
+    child->ret = *sys_buffer;
   printf ("%s: exit(%d)\n", thread_current ()->name, *sys_buffer);
   thread_exit ();
 }
@@ -200,17 +200,6 @@ is_valid_buffer (void *buffer, unsigned size)
       is_valid_addr ((const char *)temp);
       temp++;
     }
-}
-
-
-void
-exit (int status)
-{
-  struct child_process *child = thread_current ()->child;
-  if (child != NULL)
-    child->ret = status;
-  printf ("%s: exit(%d)\n", thread_current ()->name, status);
-  thread_exit ();
 }
 
 

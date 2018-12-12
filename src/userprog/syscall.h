@@ -41,7 +41,6 @@ void is_valid_addr (const void *addr);
 void is_valid_buffer (void *buffer, unsigned size);
 
 struct file_node *get_node (int fd);
-pid_t exec (const char *cmd_line);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int open (const char *file);
@@ -52,7 +51,6 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 
-void exit (int status);
 void syscall_init (void);
 
 #endif /* userprog/syscall.h */
