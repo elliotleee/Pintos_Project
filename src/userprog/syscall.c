@@ -153,6 +153,12 @@ syscall_handler (struct intr_frame *f UNUSED)
   pfn[*sys_call](f);
 }
 
+bool check_fnlist(){
+  if (list_empty(&thread_current ()->fn_list))
+    return 1;
+  else 
+    return 0;
+}
 
 struct file_node *
 get_node (int fd)
@@ -160,8 +166,7 @@ get_node (int fd)
   struct file_node *node = NULL;
   struct list_elem *e;
   
-  /* Search node in file_list */
-  if (list_empty(&thread_current ()->fn_list))
+  if (check_fnlist())
     return NULL;
   for(e = list_begin (&thread_current ()->fn_list); e != list_end (&thread_current ()->fn_list); e = list_next (e))
     {
@@ -171,6 +176,7 @@ get_node (int fd)
     }
   return NULL;
 }
+
 
 void
 is_valid_addr (const void *addr)
@@ -201,7 +207,7 @@ exit (int status)
   struct child_process *child = thread_current ()->child;
   if (child != NULL)
     child->ret = status;
-  printf ("%s: exit(%d)\n", thread_current ()->name, status);
+  //printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
 }
 

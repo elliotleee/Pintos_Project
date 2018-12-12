@@ -14,8 +14,6 @@ struct child_process {
   char *file_name;    /* Transfer file_name to start process */
 
   tid_t tid;                /* Id of child process */
-  //struct thread *parent;    /* Parent process. */
-
   tid_t father_tid; //~~~~
 
   struct list_elem elem;    /* For list */
