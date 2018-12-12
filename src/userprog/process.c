@@ -98,7 +98,7 @@ start_process (void *child_)
 {
   struct child_process *child = child_;
   struct intr_frame if_;
-
+  struct thread *t = thread_current()
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -106,11 +106,11 @@ start_process (void *child_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   bool success = load (child->file_name, &if_.eip, &if_.esp);
 
-  child_success(&child, success, &thread_current());
-  thread_current()->child = child;
-  sema_up (&thread_current()->wait);
+  child_success(&child, success, &t);
+  t->child = child;
+  sema_up (&t->wait);
 
-  if (!success)
+  if (success == 0)
     exit (-1);
 
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");

@@ -65,7 +65,11 @@ void ICreate(struct intr_frame *f)
   is_valid_addr ((const char *)sys_buffer);
   is_valid_addr ((const char *)sys_size);
   is_valid_buffer ((void *)(*sys_buffer), (unsigned)(*sys_size));
-  f->eax = create ((const char*)(*sys_buffer),(unsigned)(*sys_size));
+
+  lock_acquire (&sys_lock);
+  bool temp =  filesys_create ((const char*)(*sys_buffer), (unsigned)(*sys_size));
+  lock_release (&sys_lock);
+  f->eax = temp;
 
 }
 void IOpen(struct intr_frame *f)
@@ -214,22 +218,15 @@ exit (int status)
 pid_t
 exec (const char *cmd_line)
 {
+  tid_t tid;
   lock_acquire (&sys_lock);
-  pid_t pid = (pid_t)process_execute (cmd_line);
+  tid = process_execute (cmd_line);
   lock_release (&sys_lock);
-  return pid;
+  return (pid_t)tid;
 }
 
 
-bool
-create (const char *file, unsigned initial_size)
-{
-  bool temp;
-  lock_acquire (&sys_lock);
-  temp =  filesys_create (file, initial_size);
-  lock_release (&sys_lock);
-  return temp;
-}
+
 
 bool
 remove (const char *file)
