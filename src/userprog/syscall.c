@@ -235,41 +235,42 @@ remove (const char *file)
 int
 open (const char *file)
 {
-  if (struct file_node* node = palloc_get_page(0))
+  struct file_node* node = palloc_get_page(0);
+  if (node == NULL)
     return -1;
+  else{
+    lock_acquire (&sys_lock);
+    struct file* file_open = filesys_open(file);
+    if (file_open == NULL) {
+      palloc_free_page (node);
+      lock_release (&sys_lock);
+      return -1;
+    }
+    node->file = file_open;
 
-  struct file *file_open;
-  lock_acquire (&sys_lock);
-  file_open = filesys_open(file);
-  if (!file_open) {
-    palloc_free_page (node);
+    struct list* file_list = &thread_current()->file_list;
+    bool emptymark = list_empty (file_list);
+    if (emptymark)
+      node->fd = 3;
+    else
+      node->fd = (list_entry (list_back (file_list), struct file_node, elem)->fd) + 1;
+    list_push_back(file_list, &node->elem);
     lock_release (&sys_lock);
-    return -1;
+    return node->fd;
   }
-  node->file = file_open;
-
-  struct list* file_list = &thread_current()->file_list;
-  if (list_empty (file_list))
-    node->fd = 3;
-  else
-    node->fd = (list_entry (list_back (file_list), struct file_node, elem)->fd) + 1;
-  list_push_back(file_list, &node->elem);
-  lock_release (&sys_lock);
-  return node->fd;
 }
 
 int
 filesize (int fd)
 {
   struct file_node *node = NULL;
-  int temp;
   lock_acquire (&sys_lock);
   node = get_node (fd);
   if (node == NULL) {
     lock_release (&sys_lock);
     return -1;
   }
-  temp = file_length(node->file);
+  int temp = file_length(node->file);
   lock_release (&sys_lock);
   return temp;
 }
