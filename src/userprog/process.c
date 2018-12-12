@@ -36,7 +36,6 @@ struct child_process* init_child(char* fn_copy){
   child->savedata = false;
   child->parent_finish = false;
   child->ret = -1;
-  return child;
 }
 
 tid_t
@@ -44,7 +43,8 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
