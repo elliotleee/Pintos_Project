@@ -198,9 +198,8 @@ is_valid_buffer (void *buffer, unsigned size)
 void
 exit (int status)
 {
-  struct child_process *child = thread_current ()->child;
-  if (child != NULL)
-    child->ret = status;
+  if (thread_current ()->child)
+    thread_current ()->child->ret = status;
   printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
 }
