@@ -74,11 +74,12 @@ process_execute (const char *file_name)
   /* Wait for loading child */
   sema_down (&t->wait);
 
-  if (child->tid > -1)
+  if (child->tid >= 0)
     list_push_back (&thread_current()->child_list, &child->elem);
   free(name_copy);
   palloc_free_page (fn_copy);
-  return child->tid;
+  tid_t ret = child->tid;
+  return ret;
 }
 
 
@@ -160,26 +161,20 @@ process_wait (tid_t child_tid UNUSED)
   struct thread *t = thread_current ();
   struct list *child_list = &t->child_list;
 
-  /* Found tid in child_list */
   struct child_process *child = NULL;
-  //struct list_elem *e = NULL;
   if (!list_empty(child_list))
     child = get_child(child_list, child_tid);
-  /* Not found */
   if (child == NULL)
     return -1;
-  /* Have been waited*/
   if (child->bewaited)
     return -1;
-  child->bewaited = true;
-
-  /* Wait until child terminate */
+  else 
+    child->bewaited = true;
   if (!child->savedata)
     sema_down (&child->child_wait);
   list_remove (&child->elem);
-  int retcode = child->ret;
   palloc_free_page(child);
-  return retcode;
+  return child->ret;
 }
 
 /* Free the current process's resources. */
