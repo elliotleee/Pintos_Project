@@ -60,7 +60,7 @@ int write (int fd, const void *buffer, unsigned size)
       return size;
     }
   struct file_node *node = get_node (fd);
-  if (node == NULL || node->file == NULL)
+  if (!node|| !node->file)
     {
       lock_release (&sys_lock);
       return -1;
@@ -140,7 +140,7 @@ void close (int fd)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
-  if (node == NULL || node->file == NULL)
+  if (!node|| !node->file)
     {
       lock_release (&sys_lock);
       return;
@@ -222,7 +222,7 @@ void seek (int fd, unsigned position)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
-  if (node == NULL || node->file == NULL)
+  if (!node || !node->file)
     {
       lock_release (&sys_lock);
       return;
@@ -257,11 +257,11 @@ unsigned tell (int fd)
 {
   lock_acquire (&sys_lock);
   struct file_node *node = get_node (fd);
-  if (node == NULL || node->file == NULL)
+  if (!node  || !node->file)
     {
       lock_release (&sys_lock);
       return -1;
-    }
+    } 
   unsigned temp = file_tell (node->file);
   lock_release (&sys_lock);
   return temp;
